@@ -84,7 +84,31 @@ io.on("connection", (socket) => {
                 // Set variables
                 let room = rooms.get(socket.id);
                 let connections = room.connections;
-                let newHost = connections[0];
+                let newHost = null;
+
+                var socketList = io.sockets.server.eio.clients;
+
+                // Find new host
+                while (newHost == null) {
+                    // If all options are exhausted, just garbage collect the room
+                    if (connections.length === 1) {
+                        garbageCollectRoom(socket.id);
+                    }
+
+                    // Select the newest candidate
+                    let candidate = connections[0];
+
+                    // Check availability status
+                    if (socketList[candidate.from] === undefined) {
+                        // If available, the new host is the candidate
+                        newHost = candidate;
+                    }
+
+                    // In any case a connection has either been selected for host or found unusable, so the first element
+                    // of the array is removed
+                    connections.splice(0, 1);
+                }
+
                 let newHostSocketId = newHost.from;
                 let code = codeCache.get(socket.id);
 
@@ -93,7 +117,6 @@ io.on("connection", (socket) => {
                 codeCache.bindWithCode(newHostSocketId, code);
 
                 // Set up rooms
-                connections.splice(0, 1);
                 room.connections = connections;
                 rooms.delete(socket.id);
                 rooms.set(newHostSocketId, room);
@@ -105,8 +128,7 @@ io.on("connection", (socket) => {
                 });
             }
             else {
-                codeCache.unBind(socket.id);
-                rooms.delete(socket.id);
+                garbageCollectRoom(socket.id);
             }
         }
     });
@@ -119,7 +141,7 @@ io.on("connection", (socket) => {
             return;
         }
 
-        if (rooms.get(id).length() >= MAX_IN_ROOM) {
+        if (rooms.get(id) && rooms.get(id).length() >= MAX_IN_ROOM) {
             io.emit("Too many people in the room");
             return;
         }
@@ -145,7 +167,7 @@ io.on("connection", (socket) => {
             room.removeConnection(data);
             rooms.set(socket.id, room);
         }
-    })
+    });
 })
 
 const verifyCaptcha = (token, callback) => {

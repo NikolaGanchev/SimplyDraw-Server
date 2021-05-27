@@ -8,7 +8,9 @@ class Room {
     }
 
     addConnection(connection) {
-        this.connections.push(connection);
+        if (!this.hasConnection(connection)) {
+            this.connections.push(connection);
+        }
     }
 
     removeConnection(connection) {
@@ -17,6 +19,19 @@ class Room {
 
     length() {
         return this.connections.length;
+    }
+
+    hasConnection(connection) {
+        let hasConnection = false;
+
+        for (let con of this.connections) {
+            if (con.from === connection.from) {
+                hasConnection = true;
+                break;
+            }
+        }
+
+        return hasConnection;
     }
 }
 
