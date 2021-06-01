@@ -91,7 +91,7 @@ io.on("connection", (socket) => {
                 // Find new host
                 while (newHost == null) {
                     // If all options are exhausted, just garbage collect the room
-                    if (connections.length === 1) {
+                    if (connections.length === 0) {
                         garbageCollectRoom(socket.id);
                     }
 
