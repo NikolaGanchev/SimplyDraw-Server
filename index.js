@@ -44,6 +44,11 @@ setInterval(() => {
 }, GARBAGE_COLLECT_ROOM_TIME)
 
 function garbageCollectRoom(socketId) {
+    // Send event to the remaining connections
+    rooms.get(socketId).connections.forEach((con) => {
+        // if available, send event
+        io.to(con.from).emit("garbageCollected");
+    })
     rooms.delete(socketId);
     codeCache.unBind(socketId);
     io.to(socketId).emit("garbageCollected");
@@ -86,7 +91,7 @@ io.on("connection", (socket) => {
                 let connections = room.connections;
                 let newHost = null;
 
-                var socketList = io.sockets.server.eio.clients;
+                let socketList = io.sockets.server.eio.clients;
 
                 // Find new host
                 while (newHost == null) {
@@ -168,6 +173,12 @@ io.on("connection", (socket) => {
             rooms.set(socket.id, room);
         }
     });
+
+    socket.on("disbandRoom", () => {
+        if (rooms.has(socket.id)) {
+            garbageCollectRoom(socket.id);
+        }
+    })
 })
 
 const verifyCaptcha = (token, callback) => {
