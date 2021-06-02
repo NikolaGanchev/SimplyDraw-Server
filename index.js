@@ -137,12 +137,12 @@ io.on("connection", (socket) => {
         let id = codeCache.getSocketId(code);
 
         if (id === null) {
-            io.emit("No such code exists");
+            io.emit("noSuchCode");
             return;
         }
 
         if (rooms.get(id) && rooms.get(id).length() >= MAX_IN_ROOM) {
-            io.emit("Too many people in the room");
+            io.emit("tooManyInRoom");
             return;
         }
 
