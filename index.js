@@ -30,13 +30,13 @@ setInterval(() => {
         room = entry[1];
         let roomDuration = Date.now() - room.createdAt;
 
-        // Detect if room existed for too long with users inside
+        // Detect if room existed for too long with members inside
         if (room.length() !== 0 && roomDuration >= TIME_TO_STAY_FULL) {
             garbageCollectRoom(entry[0]);
             continue;
         }
 
-        // Detect if room existed for too long without users inside
+        // Detect if room existed for too long without members inside
         if (room.length() == 0 && roomDuration >= TIME_TO_STAY_IDLE) {
             garbageCollectRoom(entry[0]);
             continue;
@@ -66,10 +66,9 @@ io.use((socket, next) => {
             next();
         }
         else {
-            next(new Error("Invalid captcha token."))
+            next(new Error("Invalid captcha token."));
         }
-    })
-
+    });
 })
 
 io.on("connection", (socket) => {
@@ -169,6 +168,14 @@ io.on("connection", (socket) => {
 
     socket.on("memberLeave", (data) => {
         if (rooms.has(socket.id)) {
+            let socketIdOfLeftMember = data.from;
+
+            // Check if the user actually left the room and disconnect them if they didn't
+            let socketList = io.sockets.server.eio.clients;
+            if (socketList[socketIdOfLeftMember] != undefined) {
+                socketList[socketIdOfLeftMember].disconnect();
+            }
+
             let room = rooms.get(socket.id);
             room.removeConnection(data);
             rooms.set(socket.id, room);
@@ -179,7 +186,7 @@ io.on("connection", (socket) => {
         if (rooms.has(socket.id)) {
             garbageCollectRoom(socket.id);
         }
-    })
+    });
 })
 
 const verifyCaptcha = (token, callback) => {
