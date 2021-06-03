@@ -4,7 +4,8 @@ const cors = require("cors");
 const axios = require('axios');
 const { codeCache } = require("./codes");
 const Room = require("./room");
-const HCAPTCHA_SECRET = "0x0000000000000000000000000000000000000000";
+require('dotenv').config();
+const HCAPTCHA_SECRET = process.env.HCAPTCHA_SECRET;
 const MAX_IN_ROOM = 30;
 const GARBAGE_COLLECT_ROOM_TIME = 1200000; // 20 minutes
 const TIME_TO_STAY_IDLE = 1200000; // 20 minutes
