@@ -4,6 +4,7 @@ const cors = require("cors");
 const axios = require('axios');
 const { codeCache } = require("./codes");
 const Room = require("./room");
+const Connection = require("./connection");
 require('dotenv').config();
 const HCAPTCHA_SECRET = process.env.HCAPTCHA_SECRET;
 const MAX_IN_ROOM = 30;
@@ -77,7 +78,7 @@ io.on("connection", (socket) => {
     socket.on("createroom", () => {
         rooms.set(socket.id, new Room());
 
-        io.emit("roomcreated", {
+        io.to(socket.id).emit("roomcreated", {
             id: codeCache.bind(socket.id)
         });
     })
@@ -142,12 +143,12 @@ io.on("connection", (socket) => {
         let id = codeCache.getSocketId(code);
 
         if (id === null) {
-            io.emit("noSuchCode");
+            io.to(socket.id).emit("noSuchCode");
             return;
         }
 
         if (rooms.get(id) && rooms.get(id).length() >= MAX_IN_ROOM) {
-            io.emit("tooManyInRoom");
+            io.to(socket.id).emit("tooManyInRoom");
             return;
         }
 
@@ -160,15 +161,48 @@ io.on("connection", (socket) => {
 
     socket.on("memberJoin", (data) => {
         if (rooms.has(socket.id)) {
-            let room = rooms.get(socket.id);
-            room.addConnection(data);
-            rooms.set(socket.id, room);
+            io.to(data.from).emit("joinTrySuccessful", { code: codeCache.get(socket.id) });
+        }
+    });
+
+    socket.on("joinTrySuccessful", ({ code }) => {
+        let hostSocketId = codeCache.getSocketId(code);
+
+        if (hostSocketId === null) {
+            io.to(socket.id).emit("noSuchCode");
+        }
+
+        if (rooms.has(hostSocketId)) {
+            let room = rooms.get(hostSocketId);
+
+            // Too many members in the room
+            if (room.length() > MAX_IN_ROOM) return;
+
+            let connection = new Connection(socket.id);
+
+            room.addConnection(connection);
+            rooms.set(hostSocketId, room);
+
+            console.log("success");
         }
     });
 
     socket.on("memberLeave", (data) => {
         if (rooms.has(socket.id)) {
+
+            let connection;
+            try {
+                connection = new Connection(data.from);
+            }
+            catch (e) {
+                // object was not compatible with connection
+                return;
+            }
+
             let socketIdOfLeftMember = data.from;
+
+            // Check if the user is actually in the room
+            if (!rooms.get(socket.id).hasConnection(connection)) return
 
             // Check if the user actually left the room and disconnect them if they didn't
             let socketList = io.sockets.server.eio.clients;
@@ -177,10 +211,11 @@ io.on("connection", (socket) => {
             }
 
             let room = rooms.get(socket.id);
-            room.removeConnection(data);
+            room.removeConnection(connection);
             rooms.set(socket.id, room);
         }
-    });
+    }
+    );
 
     socket.on("disbandRoom", () => {
         if (rooms.has(socket.id)) {
