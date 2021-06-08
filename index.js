@@ -182,8 +182,6 @@ io.on("connection", (socket) => {
 
             room.addConnection(connection);
             rooms.set(hostSocketId, room);
-
-            console.log("success");
         }
     });
 
